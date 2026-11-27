@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Jira TUT 작업 보드
+    url: https://gad03302.atlassian.net/jira/software/projects/TUT/boards/3
+    about: 기능 요청, 버그, 개발 작업은 Jira TUT 프로젝트에서 관리합니다.

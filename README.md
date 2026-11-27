@@ -4,6 +4,12 @@
 
 현재 상태: **설계 초안 작성 완료, Java 21 선택·로컬 설치 완료, 나머지 구현은 사용자 검토 대기**. 애플리케이션·컨테이너·기능 테스트는 아직 구현하지 않았다. 문서 작성 기준일은 2026-11-27(Asia/Seoul)이다.
 
+## GitHub 및 Jira
+
+기본 브랜치는 **develop**이며 [GitHub 저장소](https://github.com/shinohshim-cyber/TutorService)와 [Jira TUT 보드](https://gad03302.atlassian.net/jira/software/projects/TUT/boards/3)를 사용한다. 실제 TUT 이슈 키를 포함한 작업 브랜치에서 변경하고 PR 자기 점검 후 develop으로 병합한다. 현재 1인 개발 기준으로 타인 승인은 필수가 아니다. PR 경유·강제 push 및 develop 삭제 차단은 유지한다.
+
+Jira는 `할 일 → 진행 중 → 체크 → 완료` 순서로 관리한다. 브랜치·커밋·PR 규칙과 자기 점검·완료 기준은 [CONTRIBUTING.md](CONTRIBUTING.md)를 따른다. [협업 환경 구성 TUT-1](https://gad03302.atlassian.net/browse/TUT-1)에서 설정과 검증 결과를 추적한다.
+
 ## 디렉터리 조사 결과
 
 작업 위치는 `D:\Projects\aisource\TutorService`다. 최초 조사에서 숨김 항목을 포함한 항목 수는 0이었다. 기존 코드, Git 메타데이터, 빌드 파일, 의존성 잠금 파일 및 상위 AGENTS.md는 발견되지 않았다. 기존 파일 수정·삭제 없이 설계 문서만 새로 작성했다.
@@ -19,7 +25,7 @@
 | Node.js / npm | 24.22.1 / 11.19.1 | 프런트엔드 후보 기준 충족, 실제 설치·빌드 미검증 |
 | Gradle | PATH에서 발견되지 않음 | 전역 설치 대신 검증된 Wrapper 도입 예정 |
 | Docker / Compose | PATH와 기본 Docker 설치 경로에서 미확인 | 설치 여부·엔진 기동 확인 필요. 컨테이너 검증 불가 |
-| Git | 2.56.0.windows.2 | 실행 가능, 저장소 초기화는 미실시 |
+| Git | 2.56.0.windows.2 | 사용자 제공 저장소 origin 연결 확인, 기본 브랜치 develop |
 | Ollama | 0.40.18, 모델 목록·show 조회 성공 | 실제 생성·임베딩 품질/속도는 미검증 |
 | WSL | `wsl --status`가 E_ACCESSDENIED 반환 | 현재 실행 권한에서 확인 불가, 미설치로 단정하지 않음 |
 | RAM / GPU | CIM 조회 접근 거부 | 하드웨어 규모 미확정, 모델 동시성 확정 불가 |
