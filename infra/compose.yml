@@ -1,0 +1,135 @@
+name: tutorservice
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg17@sha256:b513c48566e4777cd3370451400000c78eda6a08131d68f4c31d4a76f27bd8fd
+    environment:
+      POSTGRES_DB: tutor
+      POSTGRES_USER: ${MIGRATION_DB_USER:?Run Initialize-Environment.ps1}
+      POSTGRES_PASSWORD: ${MIGRATION_DB_PASSWORD:?Generate local secrets}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Generate local secrets}
+      AI_DB_PASSWORD: ${AI_DB_PASSWORD:?Generate local secrets}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/001-create-roles.sh:/docker-entrypoint-initdb.d/001-create-roles.sh:ro
+    healthcheck:
+      # The temporary initdb server listens on Unix sockets only.
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    mem_limit: 512m
+    networks: [internal]
+
+  redis:
+    image: redis:8@sha256:56a1737794e36c3ebe8a4544a8ab421af3ab1a6488fb2238aec228c404933fed
+    user: redis
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Generate local secrets}
+    entrypoint: [/bin/sh, /usr/local/bin/tutor-redis.sh]
+    volumes:
+      - redis-data:/data
+      - ./redis/start.sh:/usr/local/bin/tutor-redis.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    mem_limit: 384m
+    networks: [internal]
+
+  checkpoint-redis:
+    image: redis:8@sha256:56a1737794e36c3ebe8a4544a8ab421af3ab1a6488fb2238aec228c404933fed
+    user: redis
+    environment:
+      REDIS_PASSWORD: ${CHECKPOINT_REDIS_PASSWORD:?Generate local secrets}
+      REDIS_ENABLE_MODULES: 'true'
+    entrypoint: [/bin/sh, /usr/local/bin/tutor-redis.sh]
+    volumes:
+      - checkpoint-data:/data
+      - ./redis/start.sh:/usr/local/bin/tutor-redis.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    mem_limit: 384m
+    networks: [internal]
+
+  neo4j:
+    image: neo4j:5.26-community@sha256:c5fd91e41d44858ea678813fd53f8e60602e771a7656c502385247ffbcb0aec0
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Generate local secrets}
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    volumes: [neo4j-data:/data]
+    healthcheck:
+      test: [CMD-SHELL, 'cypher-shell -u neo4j -p "$${NEO4J_AUTH#*/}" "RETURN 1" >/dev/null']
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
+    mem_limit: 1200m
+    networks: [internal]
+
+  backend:
+    build: ../backend
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/tutor
+      APP_DB_USER: ${APP_DB_USER:?Generate local environment}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Generate local secrets}
+      MIGRATION_DB_USER: ${MIGRATION_DB_USER:?Generate local environment}
+      MIGRATION_DB_PASSWORD: ${MIGRATION_DB_PASSWORD:?Generate local secrets}
+    ports: ['127.0.0.1:18080:8080']
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, bash, -c, 'exec 3<>/dev/tcp/127.0.0.1/8080; printf "GET /actuator/health HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3; cat <&3 | grep -q ''"status":"UP"''']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+    mem_limit: 768m
+    read_only: true
+    tmpfs: [/tmp:size=128m]
+    networks: [internal]
+
+  ai-service:
+    build: ../ai-service
+    environment:
+      AI_DB_URL: postgresql+psycopg://${AI_DB_USER:?Generate local environment}:${AI_DB_PASSWORD:?Generate local secrets}@postgres:5432/tutor
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/internal/v1/health/ready",timeout=3)']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    mem_limit: 384m
+    read_only: true
+    tmpfs: [/tmp:size=64m]
+    networks: [internal]
+
+  frontend:
+    build: ../frontend
+    ports: ['127.0.0.1:5173:8080']
+    depends_on:
+      backend: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:8080/]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 128m
+    networks: [internal]
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  checkpoint-data:
+  neo4j-data:

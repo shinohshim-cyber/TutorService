@@ -61,6 +61,25 @@
 
 2026-11-27: Python 표준 라이브러리로 필수 14개 Markdown 파일과 실제 파일 수 일치, UTF-8 읽기, 비어 있지 않은 본문·제목, 코드 블록 균형, 로컬 상대 링크 대상 존재를 자동 점검했다. **PASS, exit 0**. 예기치 않은 추가 파일은 없었다. 문서 간 세션 종료/삭제·작업 상태·scope·세대/fence·memory epoch·잠금 순서와 요구사항의 단계 매핑을 교차 검토했다. 외부 URL의 장기 유효성이나 실제 의존성 설치 성공을 이 점검으로 보장하지 않는다.
 
-애플리케이션 단위·통합·성능·보안 테스트는 **미실행**이며, 문서 점검으로 이를 대신하지 않는다. Java 환경 준비는 완료했으며 Docker 준비 및 나머지 1단계 구현 후 실행 가능한 기능 검증 명령을 추가한다.
+최초 설계 조사 시점에는 애플리케이션 단위·통합·성능·보안 테스트가 미실행이었다. 문서 점검으로 이를 대신하지 않는다. 이후 1단계에서 실제 수행한 검증은 아래에 별도로 기록한다.
 
-같은 날 Java 환경 후속 검증: 사용자 요청으로 Temurin JDK 21.0.13.1+2 설치 및 시스템 JAVA_HOME/PATH 설정 완료. 갱신된 환경에서 `java -version`, `javac -version`은 모두 21.0.13.1을 반환하고 실행 경로는 `C:\Program Files\Eclipse Adoptium\jdk-21\bin`이었다. 임시 디렉터리에서 `javac --release 21`로 컴파일 후 `java`로 실행해 `Runtime.version().feature() == 21` 검사를 **통과(exit 0)**했다. 임시 소스·class 파일은 정리했다. 이는 Java 환경 검사이며 애플리케이션 테스트 통과를 의미하지 않는다. Docker 및 나머지 1단계는 미완료다.
+같은 날 Java 환경 후속 검증: 사용자 요청으로 Temurin JDK 21.0.13.1+2 설치 및 시스템 JAVA_HOME/PATH 설정 완료. 갱신된 환경에서 `java -version`, `javac -version`은 모두 21.0.13.1을 반환하고 실행 경로는 `C:\Program Files\Eclipse Adoptium\jdk-21\bin`이었다. 임시 디렉터리에서 `javac --release 21`로 컴파일 후 `java`로 실행해 `Runtime.version().feature() == 21` 검사를 통과(exit 0)했다. 임시 소스·class 파일은 정리했다. 당시 Docker 및 나머지 1단계는 미완료였으며 아래 검증으로 구분한다.
+
+## 1단계 실제 검증 기록
+
+2026-11-27, TUT-2. 검증 데이터는 환경 확인용이며 실제 학생 데이터는 사용하지 않았다.
+
+| 검증 | 결과 |
+| --- | --- |
+| Docker Engine·Compose 및 hello-world | PASS, Linux 엔진·D 드라이브 가상 디스크 확인 |
+| `npm --prefix frontend run build` | PASS, TypeScript 검사 및 Vite production build |
+| `backend/gradlew.bat --no-daemon -p backend build` | PASS, Java21. test NO-SOURCE이므로 Java 단위 테스트 통과로 계산하지 않음 |
+| `.venv/Scripts/python.exe -m pytest -q` (ai-service 디렉터리) | PASS, 2개. DB 장애에도 liveness 유지·readiness503 및 오류 정보 보호, API 문서 비공개 |
+| `docker compose --env-file .env -f infra/compose.yml up -d --build --wait` | PASS, Linux 이미지3개 빌드 및 서비스7개 healthy |
+| `python scripts/verify-environment.py` | PASS, 전체 서비스·비공개 포트·React/Spring/FastAPI·pgvector·Flyway·DB계정·Redis JSON/검색·Neo4j 인증 |
+| Spring 재기동 후 동일 환경 검증 | PASS, Flyway 성공 이력1건 유지·재적용/중복 생성 없음 |
+| 소스·구성 점검 | PASS, 생성한 비밀정보6개와 로컬 런타임 데이터가 소스에 없음. 이미지 digest8종 일치·문서 링크/인코딩 점검 |
+
+실제 빌드 중 발견한 CSS 타입 선언·Linux module 검증 메타데이터·Starlette 테스트 의존성·Neo4j 설정 이름·Windows8080 바인딩·Redis 모듈 로딩 문제를 수정한 뒤 해당 검증을 다시 통과했다. 실패한 중간 결과를 성공으로 기록하지 않았다. 공통 환경 원격 CI는 `.github/workflows/environment.yml`에서 같은 빌드·테스트·통합 검증을 수행하며, 실제 원격 결과와 develop 병합 이력은 TUT-2 및 해당 PR의 Checks를 근거로 확인한다.
+
+회원·인증·메시지·Agent·기억·RAG·성능·운영 보안 테스트는 후속 단계 범위로 미실행이다.

@@ -5,7 +5,7 @@
 ## 작업 절차
 
 - 구현 전 README.md와 해당 기능의 docs 문서를 읽는다. 요구사항·계약 변경은 설계 문서에 함께 반영한다.
-- 현재는 설계 검토 단계다. 사용자가 구현 진행을 확인하기 전에는 애플리케이션 코드, 빌드 설정, 인프라를 생성하거나 설치하지 않는다.
+- 사용자는 1단계 공통 개발 환경 구성을 승인했다. Docker Desktop·기존 WSL2 환경 준비부터 진행하며 회원·일반/AI 채팅 기능 구현은 이번 범위에 포함하지 않는다.
 - docs/TASKS.md의 1~12단계를 순서대로 진행한다. 한 번에 전체 프로젝트를 구현하지 않는다.
 - 각 단계에서 구현 내용, 변경 파일, 실행한 테스트와 결과, 미해결 문제, 다음 작업을 보고한다. 실패·미실행 검증을 통과로 기록하지 않는다.
 - 기존 파일을 읽지 않고 덮어쓰거나 삭제하지 않는다. 비밀정보와 실제 학생 대화를 커밋하지 않는다.
@@ -23,7 +23,7 @@
 ## 구조 및 책임
 
 - Java 기준은 사용자 확인된 **JDK 21**이다. 향후 Gradle toolchain, 컴파일·테스트, 컨테이너 런타임도 Java 21로 맞춘다. 로컬 설치 확인 버전은 Temurin 21.0.13.1+2다.
-- 계획 디렉터리: frontend/, backend/, ai-service/, infra/, docs/. 현재 코드 디렉터리는 아직 없다.
+- 디렉터리: frontend/, backend/, ai-service/, infra/, scripts/, docs/. 1단계 최소 골격이 있으며 업무 기능은 이후 단계별로 추가한다.
 - backend는 common, identity, relationship, notification, chat, aichat 모듈로 구분한다. 일반 채팅과 AI 채팅의 Entity/Repository/Service를 분리한다.
 - Controller는 요청 변환·검증, Service는 권한·유스케이스·트랜잭션, Repository는 영속화, Entity는 불변조건, DTO는 전송 계약을 담당한다.
 - 외부 HTTP/WS 진입점은 Spring Boot다. FastAPI, Redis, Neo4j, Ollama는 내부 전용이다.
@@ -42,6 +42,6 @@
 
 ## 검증 및 실행
 
-실행 가능한 명령은 1단계 구축 후 README에 실제 확인 결과와 함께 추가한다. 현재 빌드·테스트 명령은 존재하지 않는다.
-이후 backend는 Gradle Wrapper, frontend는 npm lockfile, ai-service는 해시가 포함된 의존성 잠금 파일을 사용한다. Docker 기반 통합 테스트는 실제 PostgreSQL/Redis/Neo4j 조합으로 수행한다.
+실행·검증 명령은 README와 docs/LOCAL_SETUP.md를 따른다. backend는 Gradle Wrapper와 gradle.lockfile/verification-metadata, frontend는 package-lock.json, ai-service는 해시를 포함한 requirements.lock/requirements-dev.lock을 사용한다. 이미지는 infra/images.lock.json과 Dockerfile/Compose의 digest를 함께 관리한다.
+Docker 기반 환경 통합 검증은 실제 PostgreSQL/Redis/Neo4j 조합에서 `python scripts/verify-environment.py`로 수행한다. 운영 데이터나 다른 프로젝트의 볼륨을 초기화·정리하지 않는다.
 검증 기준은 docs/TEST_PLAN.md를 따른다. 기능별 보안·경합·장애 테스트가 실패하면 완료 처리하지 않는다.

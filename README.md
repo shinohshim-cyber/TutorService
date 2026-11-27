@@ -2,7 +2,19 @@
 
 학생·선생님의 실시간 1:1 채팅과 학생 전용 AI 학습 상담을 통합한다. AI 상담은 단기·장기 기억, Context Engineering, pgvector 검색과 Neo4j GraphRAG를 단계적으로 도입한다.
 
-현재 상태: **설계 초안 작성 완료, Java 21 선택·로컬 설치 완료, 나머지 구현은 사용자 검토 대기**. 애플리케이션·컨테이너·기능 테스트는 아직 구현하지 않았다. 문서 작성 기준일은 2026-11-27(Asia/Seoul)이다.
+현재 상태: **1단계 개발 환경 구성 및 로컬 검증 완료**. Java21·Docker Desktop과 세 서비스 최소 골격·의존성 잠금·Compose·Flyway·CI를 구성했고 7개 컨테이너의 실제 통합 검증을 통과했다. 회원·채팅·AI Agent 기능은 이후 단계다. 최종 원격 CI·PR 병합 이력은 [TUT-2](https://gad03302.atlassian.net/browse/TUT-2)에서 추적한다. 기준일은 2026-11-27(Asia/Seoul)이며 실행법·제약·검증 결과는 [LOCAL_SETUP](docs/LOCAL_SETUP.md)에 기록한다.
+
+## 로컬 실행
+
+Docker Desktop을 시작하고 저장소 루트의 새 PowerShell 터미널에서 실행한다.
+
+```powershell
+./scripts/Initialize-Environment.ps1
+docker compose --env-file .env -f infra/compose.yml up -d --build --wait --wait-timeout 240
+python scripts/verify-environment.py
+```
+
+화면은 `http://127.0.0.1:5173`, Spring API는 `http://127.0.0.1:18080`이다. `.env`에 생성되는 실제 비밀정보는 커밋·공유하지 않는다. 상세한 개발·중지 명령과 버전 정책은 LOCAL_SETUP을 따른다.
 
 ## GitHub 및 Jira
 
@@ -22,13 +34,13 @@ Jira는 `할 일 → 진행 중 → 체크 → 완료` 순서로 관리한다. �
 | Python | `C:\Python312\python.exe`, 3.12.6 | 3.12 계열 사용 가능. 최신 보안 패치 적용 검토 |
 | Python Launcher | py는 있으나 등록된 Python 없음 | `python` 경로를 명시해 가상환경 생성 예정 |
 | pip | 26.3 | 프로젝트 가상환경은 아직 없음 |
-| Node.js / npm | 24.22.1 / 11.19.1 | 프런트엔드 후보 기준 충족, 실제 설치·빌드 미검증 |
-| Gradle | PATH에서 발견되지 않음 | 전역 설치 대신 검증된 Wrapper 도입 예정 |
-| Docker / Compose | PATH와 기본 Docker 설치 경로에서 미확인 | 설치 여부·엔진 기동 확인 필요. 컨테이너 검증 불가 |
+| Node.js / npm | 24.22.1 / 11.19.1 | 의존성 설치·typecheck·production build 통과 |
+| Gradle | 프로젝트 Wrapper8.14.3 | 배포 SHA256·의존성 잠금/해시 및 Java21 빌드 검증 |
+| Docker / Compose | Desktop4.100.1 / Engine29.9.3 / Compose5.7.1 | Linux 엔진·hello-world·D 드라이브 가상 디스크 검증 통과 |
 | Git | 2.56.0.windows.2 | 사용자 제공 저장소 origin 연결 확인, 기본 브랜치 develop |
 | Ollama | 0.40.18, 모델 목록·show 조회 성공 | 실제 생성·임베딩 품질/속도는 미검증 |
-| WSL | `wsl --status`가 E_ACCESSDENIED 반환 | 현재 실행 권한에서 확인 불가, 미설치로 단정하지 않음 |
-| RAM / GPU | CIM 조회 접근 거부 | 하드웨어 규모 미확정, 모델 동시성 확정 불가 |
+| WSL | 권한 승인 후 조회 성공: 3.0.5.0, Ubuntu-24.04, WSL2 | 기존 배포판 유지, 별도 Ubuntu 설치 없음 |
+| RAM / GPU | 약 15.9 GiB RAM, Intel HD Graphics 4600 | 하드웨어 조회 완료, 실제 모델 성능·동시성은 미측정 |
 
 Java 최초 조사값은 17.0.12였다. 이후 사용자 요청으로 공식 winget 패키지 `EclipseAdoptium.Temurin.21.JDK` 버전 `21.0.13.102`(JDK 21.0.13.1+2)를 설치했다. 갱신된 시스템 환경변수를 읽은 검증 프로세스에서 java/javac 모두 새 경로로 해석되고 Java 21 smoke 검사가 통과했다. 기존에 실행 중인 Codex·IDE·터미널은 이전 환경변수를 유지할 수 있으므로 재시작 후 사용한다. 기존 JDK 17은 삭제하지 않았다.
 
@@ -36,24 +48,24 @@ Ollama 로컬 모델: bge-m3, qwen3-vl:4b, embeddinggemma, gemma4:e2b, gemma2. `
 
 ## 기술 조합 제안
 
-아래는 **초기 후보**다. 최신판을 무조건 선택하지 않으며 1단계에서 지원 기간·보안 공지·실제 resolver/빌드/통합 테스트 후 정확한 패치 버전과 이미지 digest를 확정한다.
+아래는 1단계에서 검증·고정한 조합과 후속 단계의 후보를 구분한 것이다. 실제 버전은 lockfile과 이미지 digest를 기준으로 재현하며 기능 추가 시 호환성·보안·통합 테스트를 다시 확인한다.
 
 | 영역 | 제안 | 의존성·검증 항목 |
 | --- | --- | --- |
-| JVM | JDK 21 + Spring Boot 4.0.x + Gradle 8.14.x | Boot 4의 Spring Framework 7 / Security 7 / Jakarta EE 11 계열. BOM 사용, Jackson·JWT·STOMP 통합 검증 |
-| Frontend | Node 24 + React 19.x + TypeScript + Vite | React/TS/Vite 패치 버전과 peer dependencies는 npm resolver 후 고정. STOMP client 도입 |
-| AI API | Python 3.12 + FastAPI + Pydantic 2 + Uvicorn | FastAPI/Starlette/AnyIO 호환 세트로 lock. async HTTP와 worker lifecycle 분리 |
+| JVM | JDK21 + Spring Boot4.0.10 + Gradle8.14.3 | BOM·lock·SHA256 검증. Security/JWT·STOMP는 후속 단계 |
+| Frontend | Node24.22.1 + React19.3.1 + TypeScript7.0.2 + Vite8.4.0 | npm lock·typecheck/build 확인. STOMP는 3단계 |
+| AI API | Python3.12 + FastAPI0.162.7 + Pydantic2.14.4 + Uvicorn0.54.0 | prod/dev 해시 잠금 파일, 내부 health/readiness 테스트 |
 | AI Agent | LangChain / LangGraph + langchain-ollama + langgraph-checkpoint-redis | 개별 최신 버전을 섞지 않고 공통 core/checkpoint 제약을 resolve하고 저장·재개 API 확인 |
-| ORM | Spring Data JPA / SQLAlchemy 2 + psycopg 3 | Java는 업무 원본, Python은 제한된 RAG/기억 데이터 접근. DDL은 Flyway 단일 소유 |
-| PostgreSQL | 17.x + pgvector 0.8.7 후보 | Flyway core + PostgreSQL 모듈 + JDBC driver. 확장 포함 이미지·인덱스 검증 |
-| Redis | 8.x(JSON·Query Engine 포함 배포판) | Checkpointer 모듈 필수. 인증/큐 Redis와 checkpoint Redis는 인스턴스 분리 권장 |
-| Neo4j | 지원 중인 2026.x 서버 후보 + Python driver 6.x | 정확한 서버 패치·에디션·라이선스와 driver 조합은 10단계 검증 |
+| ORM | Spring Data JPA / SQLAlchemy2.1.9 + psycopg3.3.9 | Runtime DB 계정 분리·Flyway validate, Python memory/rag 범위 |
+| PostgreSQL | 17 계열 + pgvector0.8.7 digest 고정 | Flyway baseline·재기동 중복 방지·권한 분리 통과 |
+| Redis | Redis8 digest 고정, 인증/큐·checkpoint 별도 인스턴스 | checkpoint의 JSON·Query Engine 명시 로드·동작 검증 |
+| Neo4j | 5.26 LTS community 이미지를 digest 고정 | 실제 GraphRAG·Python driver 연결은 10단계 검증 |
 | LLM / embedding | 현재 Ollama, gemma4:e2b / bge-m3 우선 평가 | 한국어 튜터 평가 후 확정. embedding 1024 차원은 실제 API 출력으로 재확인 |
-| Infra | Docker Desktop + Compose v2, Linux containers | Windows/WSL 권한 및 메모리 확인. DB는 외부 포트 비공개 원칙 |
+| Infra | Docker Desktop + Compose 플러그인, Linux containers | 실제 Compose5.7.1 사용. DB·AI 서비스 호스트 포트 비공개 |
 
 Spring Boot 4.0 공식 요구사항은 Java 17 이상과 Gradle 8.14 이상(8.x) 또는 9.x를 명시한다. Java 21에서 Gradle 실행은 8.5부터 지원된다. 따라서 제안 조합은 문서상 교집합에 있다. Boot 3.5는 대안이지만 새 프로젝트는 4.0을 우선 평가한다. [Boot 요구사항](https://docs.spring.io/spring-boot/4.0/system-requirements.html), [Gradle 호환표](https://docs.gradle.org/current/userguide/compatibility.html).
 
-Vite 공식 가이드의 Node 최소 기준은 20.19+ 또는 22.12+다. 현재 Node 24는 기준을 충족하지만 lock 생성과 빌드 검증이 필요하다. [Vite 가이드](https://vite.dev/guide/).
+Vite 공식 가이드의 Node 최소 기준은 20.19+ 또는 22.12+다. 현재 Node24에서 lock 생성과 typecheck/build를 검증했다. [Vite 가이드](https://vite.dev/guide/).
 
 Redis Checkpointer는 Redis JSON과 Query Engine이 필요하다. Python 3.12는 공식 지원 범위에 포함된다. TTL 옵션 단위는 분이다. 완료 시점 기준 정책은 별도 lifecycle 계층으로 구현한다. [Redis 요구사항](https://redis.io/docs/latest/integrate/langgraph/), [TTL 옵션](https://redis-developer.github.io/langgraph-redis/v0.6.0/user_guide/ttl.html).
 
@@ -79,4 +91,4 @@ Redis Checkpointer는 Redis JSON과 Query Engine이 필요하다. Python 3.12는
 
 ## 다음 작업
 
-Java 21 준비는 완료했다. 나머지 1단계는 사용자 확인 후 Docker 환경 준비·의존성 버전 고정·최소 골격·Compose·헬스체크·Flyway·CI 구성을 진행한다. 현재 실행할 애플리케이션이나 기능 테스트 명령은 없다. 각 단계의 성공·실패 근거를 TASKS에 기록한다.
+로컬 통합 검증은 통과했으며 원격 CI와 develop 병합 결과는 TUT-2에 연결한다. 다음 기능 단계는 회원관리·인증이며, 현재 환경 준비를 그 기능의 완료로 계산하지 않는다.
