@@ -4,6 +4,8 @@
 
 ## 인증·토큰
 
+2단계 구체 계약과 운영자 선생님 초대 절차는 [AUTH_DESIGN](AUTH_DESIGN.md)을 따른다. JWT/Refresh/회원·관계 상태 검사는 Spring 외부 API에서 공통 적용한다. WS 종료는 3단계 WS 구현 시 연동하며 현재 WS 기능이 있는 것으로 계산하지 않는다.
+
 - 비밀번호는 Spring BCrypt로 저장한다. 초기 cost 12 후보를 하드웨어에서 측정한다. BCrypt의 72바이트 제한을 UTF-8 기준으로 검증하고 조용한 절단을 금지한다. 최소 길이·로그인 rate limit·일반화된 오류를 적용한다.
 - Access JWT 초기 수명 15분, refresh family 절대 수명 14일은 후보다. JWT 서명 알고리즘 allowlist, iss/aud/exp/nbf/sub/jti/kid를 검증한다. 키는 환경변수 또는 배포 secret 주입으로 관리하며 코드·이미지·로그에 넣지 않는다.
 - Refresh는 256-bit 이상 CSPRNG opaque 값이다. Redis에는 원문 대신 별도 환경 secret을 쓰는 HMAC-SHA256 digest와 family/jti/user/만료/소모 상태만 저장한다.
@@ -31,5 +33,6 @@ FastAPI/Redis/PostgreSQL/Neo4j/Ollama는 외부 공개하지 않는다. 내부 J
 ## 개인정보·삭제·운영
 
 대화·기억·학생 식별자·token을 로그·trace payload에 기록하지 않는다. 감사 로그에는 행위 종류, 주체의 최소 식별자, 대상 ID, 결과·시각만 기록하며 접근을 제한한다. 기억은 처리 목적에 필요한 정보만 추출하고 민감정보는 제외한다.
+2단계에서는 중복 email의 DB 오류 DETAIL에 식별자가 포함되는 것을 확인해 Hibernate JDBC 오류/바인딩 로그를 비활성화하고 PostgreSQL 오류 verbosity=terse, 오류 SQL/파라미터 출력 제한을 적용한다. API는 공통 오류로 응답한다. 실제 중복 가입 후 backend/PostgreSQL 로그에 해당 fixture 식별자·비밀번호·초대 원문·토큰이 없는지 통합 테스트한다. Refresh replay는 비밀정보 없이 보안 이벤트만 기록한다.
 삭제는 DB tombstone으로 즉시 차단하고 Redis checkpoint·staging·vector·Neo4j·캐시·출처 요약을 정리한다. worker 재시도·오프라인 결과·백업 복원으로 데이터가 부활하지 않게 ledger를 적용한다. backup 물리 만료와 처리 의무는 운영 전에 확정한다.
 의존성은 BOM/lock/digest로 고정하고 SBOM·secret scan·npm audit/pip audit/Java 취약점 점검을 CI에 구성한다. 스캔 결과의 오탐·예외는 근거·기한을 기록한다. 출시 차단 항목은 테스트 실패, 권한 누출, 취소·삭제 후 재생성, 미해결 critical 취약점이다.

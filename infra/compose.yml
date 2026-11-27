@@ -3,6 +3,7 @@ name: tutorservice
 services:
   postgres:
     image: pgvector/pgvector:0.8.7-pg17@sha256:b513c48566e4777cd3370451400000c78eda6a08131d68f4c31d4a76f27bd8fd
+    command: [postgres, -c, log_error_verbosity=terse, -c, log_min_error_statement=panic, -c, log_parameter_max_length_on_error=0]
     environment:
       POSTGRES_DB: tutor
       POSTGRES_USER: ${MIGRATION_DB_USER:?Run Initialize-Environment.ps1}
@@ -81,9 +82,18 @@ services:
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Generate local secrets}
       MIGRATION_DB_USER: ${MIGRATION_DB_USER:?Generate local environment}
       MIGRATION_DB_PASSWORD: ${MIGRATION_DB_PASSWORD:?Generate local secrets}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Generate local secrets}
+      AUTH_JWT_KEY: ${AUTH_JWT_KEY:?Run Initialize-Environment.ps1}
+      AUTH_REFRESH_HMAC_KEY: ${AUTH_REFRESH_HMAC_KEY:?Run Initialize-Environment.ps1}
+      AUTH_JWT_KID: ${AUTH_JWT_KID:-local-v1}
+      AUTH_JWT_PREVIOUS_KEY: ${AUTH_JWT_PREVIOUS_KEY:-}
+      AUTH_JWT_PREVIOUS_KID: ${AUTH_JWT_PREVIOUS_KID:-local-v0}
+      # HTTP loopback development only; production requires TLS/Secure=true.
+      AUTH_SECURE_COOKIE: 'false'
     ports: ['127.0.0.1:18080:8080']
     depends_on:
       postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
     healthcheck:
       test: [CMD, bash, -c, 'exec 3<>/dev/tcp/127.0.0.1/8080; printf "GET /actuator/health HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3; cat <&3 | grep -q ''"status":"UP"''']
       interval: 10s

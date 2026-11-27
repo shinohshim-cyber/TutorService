@@ -58,7 +58,7 @@ docker compose --env-file .env -f infra/compose.yml up -d --build --wait --wait-
 python scripts/verify-environment.py
 ```
 
-Frontend는 `http://127.0.0.1:5173`, Spring API는 `http://127.0.0.1:18080`이다. 이 호스트의 8080 포트 바인딩이 Windows에서 거절되어 API 호스트 포트만 18080으로 변경했다. 컨테이너 내부 Spring 포트는 8080을 유지한다. FastAPI·PostgreSQL·Redis·Neo4j는 호스트 포트를 게시하지 않는다. frontend의 `/api`는 Spring으로만 프록시한다. 회원·일반 채팅·AI 상담은 아직 구현하지 않았으며 현재 화면은 환경 연결 확인용이다.
+Frontend는 `http://127.0.0.1:5173`, Spring API는 `http://127.0.0.1:18080`이다. 이 호스트의 8080 포트 바인딩이 Windows에서 거절되어 API 호스트 포트만 18080으로 변경했다. 컨테이너 내부 Spring 포트는 8080을 유지한다. FastAPI·PostgreSQL·Redis·Neo4j는 호스트 포트를 게시하지 않는다. frontend의 `/api`는 Spring으로만 프록시한다. 2단계에서는 회원가입·로그인·프로필·탈퇴·담당 관계 화면을 제공하며 일반 채팅·AI 상담은 후속 단계다.
 
 중지는 아래 명령을 사용한다. 볼륨과 DB 데이터를 제거하는 옵션은 포함하지 않는다.
 
@@ -79,7 +79,27 @@ Push-Location ai-service
 Pop-Location
 ```
 
-Java 테스트 소스는 아직 없으며 backend build의 `test NO-SOURCE`를 단위 테스트 통과로 계산하지 않는다. backend의 실제 DB 초기화·기동·재기동은 환경 통합 검증에서 확인한다.
+1단계에는 Java 테스트가 없었고 2단계부터 비밀번호·JWT JUnit 테스트를 실행한다. 실제 DB 초기화·기동·재기동은 환경 통합 검증에서, 회원·인증과 Redis 장애는 아래 인증 검증에서 확인한다.
+
+## 회원·인증 실행 및 검증
+
+기존 환경에도 `Initialize-Environment.ps1`를 다시 실행하면 기존 값을 보존하면서 누락된 AUTH_JWT_KEY/AUTH_REFRESH_HMAC_KEY만 생성한다. 재실행으로 비밀정보를 교체하지 않는다. 실제 `.env`의 비밀정보는 공유하지 않는다.
+
+```powershell
+python scripts/verify-auth.py
+```
+
+이 검증은 가상 회원과 초대만 만들고 종료 시 해당 UUID fixture만 정리한다. 인증 Redis를 잠시 정지해 장애 거절을 검증한 뒤 finally에서 복구하므로 개발 중인 다른 요청이 없는 시점에 실행한다. FLUSHDB·볼륨 삭제는 사용하지 않는다.
+
+학생은 화면에서 직접 가입할 수 있다. 선생님은 운영자가 신원/권한을 외부 확인한 뒤 아래 명령으로 email 귀속 단회 가입 코드를 발급한다. 출력 코드는 비공개로 전달하고 로그·Git·Jira·Drive에 남기지 않는다. 유효기간은24시간이다.
+
+```powershell
+python scripts/create-teacher-invitation.py --email teacher@example.test --verified-by verification-reference
+```
+
+선생님은 가입 시 해당 코드를 입력한다. 가입 후 학생이 알려준 회원 UUID로 담당 관계 초대를 보내고 학생이 로그인해 수락한다. 양측이 연결을 해제할 수 있다. 비밀번호는12자 이상·UTF-8 72바이트 이하로 입력한다. 회원 탈퇴는 현재 비밀번호 재확인을 요구한다.
+
+개발 cookie는 HTTP loopback에서만 Secure=false다. 배포 시 TLS와 AUTH_SECURE_COOKIE=true, 실제 Origin allowlist를 명시하고 로컬 Compose 설정을 운영에 그대로 사용하지 않는다. JWT 키 교체는 새 AUTH_JWT_KEY/KID와 이전 AUTH_JWT_PREVIOUS_KEY/KID를 동시에 주입한 뒤 최대 Access15분 경과 후 이전 키를 제거하는 절차다. 운영 개인정보·보관·부하/전체 보안 검증은12단계까지 완료해야 한다.
 
 ## 확정한 의존성과 경계
 

@@ -2,7 +2,7 @@
 
 학생·선생님의 실시간 1:1 채팅과 학생 전용 AI 학습 상담을 통합한다. AI 상담은 단기·장기 기억, Context Engineering, pgvector 검색과 Neo4j GraphRAG를 단계적으로 도입한다.
 
-현재 상태: **1단계 개발 환경 구성 및 로컬 검증 완료**. Java21·Docker Desktop과 세 서비스 최소 골격·의존성 잠금·Compose·Flyway·CI를 구성했고 7개 컨테이너의 실제 통합 검증을 통과했다. 회원·채팅·AI Agent 기능은 이후 단계다. 최종 원격 CI·PR 병합 이력은 [TUT-2](https://gad03302.atlassian.net/browse/TUT-2)에서 추적한다. 기준일은 2026-11-27(Asia/Seoul)이며 실행법·제약·검증 결과는 [LOCAL_SETUP](docs/LOCAL_SETUP.md)에 기록한다.
+현재 상태: **2단계 회원·인증 구현 및 로컬 검증 완료**. 학생·검증된 선생님 가입, BCrypt, JWT, Redis Refresh Rotation/replay 차단, 프로필·탈퇴, 담당 관계 초대/수락/해제와 React 화면을 구성했다. Java 테스트4개, 실제 PostgreSQL/Redis API 통합 검증과 브라우저 핵심 여정을 통과했다. 원격 CI·최종 병합 이력은 [TUT-5](https://gad03302.atlassian.net/browse/TUT-5) 및 TUT-29~36에서 추적한다. 일반 채팅·AI Agent는 이후 단계다. 기준일은 2026-11-27(Asia/Seoul)이며 실행법·선생님 초대 절차는 [LOCAL_SETUP](docs/LOCAL_SETUP.md), 보안 계약은 [AUTH_DESIGN](docs/AUTH_DESIGN.md)을 따른다.
 
 ## 로컬 실행
 
@@ -12,6 +12,7 @@ Docker Desktop을 시작하고 저장소 루트의 새 PowerShell 터미널에�
 ./scripts/Initialize-Environment.ps1
 docker compose --env-file .env -f infra/compose.yml up -d --build --wait --wait-timeout 240
 python scripts/verify-environment.py
+python scripts/verify-auth.py
 ```
 
 화면은 `http://127.0.0.1:5173`, Spring API는 `http://127.0.0.1:18080`이다. `.env`에 생성되는 실제 비밀정보는 커밋·공유하지 않는다. 상세한 개발·중지 명령과 버전 정책은 LOCAL_SETUP을 따른다.
@@ -33,7 +34,7 @@ Jira는 `할 일 → 진행 중 → 체크 → 완료` 순서로 관리한다. �
 | Java / javac | Temurin 21.0.13.1+2 / javac 21.0.13.1, JAVA_HOME=`C:\Program Files\Eclipse Adoptium\jdk-21\` | 사용자 지시에 따라 설치·시스템 JAVA_HOME/PATH 설정 완료. `--release 21` 컴파일·실행 통과 |
 | Python | `C:\Python312\python.exe`, 3.12.6 | 3.12 계열 사용 가능. 최신 보안 패치 적용 검토 |
 | Python Launcher | py는 있으나 등록된 Python 없음 | `python` 경로를 명시해 가상환경 생성 예정 |
-| pip | 26.3 | 프로젝트 가상환경은 아직 없음 |
+| pip | 26.3 | ai-service 가상환경 및 해시 잠금 파일 사용 |
 | Node.js / npm | 24.22.1 / 11.19.1 | 의존성 설치·typecheck·production build 통과 |
 | Gradle | 프로젝트 Wrapper8.14.3 | 배포 SHA256·의존성 잠금/해시 및 Java21 빌드 검증 |
 | Docker / Compose | Desktop4.100.1 / Engine29.9.3 / Compose5.7.1 | Linux 엔진·hello-world·D 드라이브 가상 디스크 검증 통과 |
@@ -52,7 +53,7 @@ Ollama 로컬 모델: bge-m3, qwen3-vl:4b, embeddinggemma, gemma4:e2b, gemma2. `
 
 | 영역 | 제안 | 의존성·검증 항목 |
 | --- | --- | --- |
-| JVM | JDK21 + Spring Boot4.0.10 + Gradle8.14.3 | BOM·lock·SHA256 검증. Security/JWT·STOMP는 후속 단계 |
+| JVM | JDK21 + Spring Boot4.0.10 + Gradle8.14.3 | BOM·lock·SHA256 검증. Security/JWT는2단계, STOMP는3단계 |
 | Frontend | Node24.22.1 + React19.3.1 + TypeScript7.0.2 + Vite8.4.0 | npm lock·typecheck/build 확인. STOMP는 3단계 |
 | AI API | Python3.12 + FastAPI0.162.7 + Pydantic2.14.4 + Uvicorn0.54.0 | prod/dev 해시 잠금 파일, 내부 health/readiness 테스트 |
 | AI Agent | LangChain / LangGraph + langchain-ollama + langgraph-checkpoint-redis | 개별 최신 버전을 섞지 않고 공통 core/checkpoint 제약을 resolve하고 저장·재개 API 확인 |
@@ -86,9 +87,10 @@ Redis Checkpointer는 Redis JSON과 Query Engine이 필요하다. Python 3.12는
 | [CONTEXT_ENGINEERING](docs/CONTEXT_ENGINEERING.md) | 압축·요약·예산 |
 | [RAG_DESIGN](docs/RAG_DESIGN.md) | 문서 파이프라인·검색 범위·그래프 |
 | [SECURITY](docs/SECURITY.md) | 인증·인가·개인정보·AI 보안 |
+| [AUTH_DESIGN](docs/AUTH_DESIGN.md) | 2단계 회원·JWT·Refresh·초대 구현 계약 |
 | [TASKS](docs/TASKS.md) | 구현 순서, 승인·완료 게이트 |
 | [TEST_PLAN](docs/TEST_PLAN.md) | 기능·경합·장애·보안 검증 |
 
 ## 다음 작업
 
-로컬 통합 검증은 통과했으며 원격 CI와 develop 병합 결과는 TUT-2에 연결한다. 다음 기능 단계는 회원관리·인증이며, 현재 환경 준비를 그 기능의 완료로 계산하지 않는다.
+회원·인증 로컬 검증은 통과했으며 원격 CI와 develop 병합 결과는 TUT-5 및 해당 PR에 연결한다. 다음 기능 단계는 일반 채팅 시스템이다. 인증 Redis 장애 테스트는 해당 Compose 인스턴스를 잠시 정지·복구하므로 개발 요청이 없는 시점에 실행한다.
