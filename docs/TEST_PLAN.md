@@ -1,6 +1,6 @@
 # 테스트 및 완료 기준
 
-현재는 설계 단계다. 아래 테스트는 계획이며 실제 기능 검증 완료를 뜻하지 않는다. 가상 데이터 fixture를 사용하고 비동기 경합은 sleep에 의존하지 않는 barrier·제어 clock·장애 hook으로 재현한다.
+단계별 검증을 진행한다. 아래 필수 시나리오 표는 계획이며 실제 완료 결과는 문서 하단의 단계별 기록과 CI를 따른다. 가상 데이터 fixture를 사용하고 비동기 경합은 sleep에 의존하지 않는 barrier·제어 clock·장애 hook으로 재현한다.
 
 ## 도구·계층
 
@@ -82,4 +82,24 @@
 
 실제 빌드 중 발견한 CSS 타입 선언·Linux module 검증 메타데이터·Starlette 테스트 의존성·Neo4j 설정 이름·Windows8080 바인딩·Redis 모듈 로딩 문제를 수정한 뒤 해당 검증을 다시 통과했다. 실패한 중간 결과를 성공으로 기록하지 않았다. 공통 환경 원격 CI는 `.github/workflows/environment.yml`에서 같은 빌드·테스트·통합 검증을 수행하며, 실제 원격 결과와 develop 병합 이력은 TUT-2 및 해당 PR의 Checks를 근거로 확인한다.
 
-회원·인증·메시지·Agent·기억·RAG·성능·운영 보안 테스트는 후속 단계 범위로 미실행이다.
+위 기록은 1단계 시점이며 이후 회원·인증 결과는 아래에 구분한다. 메시지·Agent·기억·RAG·성능·운영 보안 테스트는 후속 단계다.
+
+## 2단계 실제 검증 기록
+
+2026-11-27, TUT-5/TUT-29~36. 가상 회원만 사용했다.
+
+| 검증 | 결과 |
+| --- | --- |
+| Java21 `backend/gradlew.bat --no-daemon -p backend build` | PASS, JUnit4개: UTF-8/최소 길이·JWT 발급/서명/iss/aud/만료/필수 claim/kid·이전 키 교체·서명 없는 JWT 거절 |
+| frontend `npm --prefix frontend run build` | PASS, TypeScript·Vite build |
+| `python scripts/verify-auth.py` | PASS, 실제 PG/Redis 기반 AUTH-01~03·COM-01/03. 가입/중복/역할 위조/초대 단회·만료/프로필/인가/페이지네이션/CSRF/Origin/16KB/BCrypt/탈퇴·익명화 검증 |
+| Refresh 통합 경합 | PASS, barrier 동시2요청 결과200/401, family 폐기로 성공한 Access도401. HMAC digest만 저장·USED 보존·TTL 연장 없음·만료·logout·모든 세션 탈퇴 차단 |
+| Redis 장애 주입 | PASS, 해당 Compose Redis 정지 시 보호/refresh/login503. finally 복구 후 정상 접근. FLUSHDB/볼륨 제거 없음 |
+| Chrome headless 실제 화면 | PASS, 가입→로그인→이름 변경→새로고침 refresh→다중 탭 로그아웃→재로그인→탈퇴. HttpOnly/SameSite/path·Web Storage 비사용·JS 런타임 오류 없음 |
+| 반응형 시각 검토 | PASS, 데스크톱1360px·모바일390px에서 가독성과 가로 넘침 없음 확인 |
+| 기존 환경변수 보존 | PASS, 누락된 auth secret만 추가·완전한 .env 재실행 hash 동일. 숫자 포함 변수명 인식 회귀 수정 |
+| 민감정보 로그 | PASS, 중복 email 오류에서 식별자가 노출되는 설정을 보완한 뒤 backend/PostgreSQL 로그에서 해당 fixture email·비밀번호·초대 코드·JWT/Refresh 원문 없음 확인 |
+
+중간 JSX 닫는 태그·Origin 거절 오류 JSON·검증 클라이언트의 CSRF 갱신 순서 문제를 수정하고 해당 검증을 다시 통과했다. 실제 Spring/브라우저 흐름대로 변경 요청 직전 CSRF를 조회한다. JWT 키 교체는 JUnit에서 현재/이전 키 수락 및 제거 후 거절을 검증했으며 운영 배포의 실제 키 교체 실행을 의미하지 않는다.
+
+CI 필수 `build-and-integration`은 Java/프런트/AI 테스트, Compose 기동, 환경·마이그레이션 재실행 및 인증 API/Redis 장애 테스트를 실행한다. 실제 원격 결과는 PR Checks에 연결한다. Chrome 화면 검증은 로컬 수행이며 CI에서는 아직 Playwright를 실행하지 않는다. 통합 UI 전체 E2E는11단계다. WS 토큰 회수·메시지·AI·성능/운영 보안은 후속 단계다.

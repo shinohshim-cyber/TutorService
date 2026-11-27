@@ -37,6 +37,12 @@
 
 JDK21·로컬 Docker Desktop을 준비하고 버전·의존성을 고정했으며 최소 3개 서비스 골격·Compose·Flyway baseline·환경 검증·CI를 구성했다. 로컬 전체 통합 검증이 통과했다. 실행 명령과 제약은 LOCAL_SETUP.md를 따른다. 회원·채팅 기능은 아직 구현하지 않았다. PR의 실제 CI 성공과 develop 병합을 확인한 뒤 Jira를 완료 처리한다.
 
+## 2단계 구현 및 로컬 검증
+
+사용자는 1단계 완료 후 2단계 진행을 확인했다. 브랜치 `feature/TUT-29-member-authentication`, 에픽 TUT-5, WBS02.01~02.08/TUT-29~36에서 진행한다. 학생/검증된 선생님 가입, 프로필·탈퇴, JWT와 Redis HMAC Refresh 원자 Rotation/replay 폐기, CSRF/Origin/속도·입력 제한, 담당 관계 초대·수락·해제, React 인증 화면을 구현했다. 검증 결과는 TEST_PLAN의2단계 기록을 따른다. 원격 CI 통과 및 develop 병합 후 Jira를 완료로 처리한다. 채팅·WS는 포함하지 않는다.
+
+다음은 3단계 일반 채팅 시스템이다. 실제 활성 담당 관계의 인가·DB 커밋 후 Outbox 전달·멱등 메시지·읽음/오프라인·REST/STOMP 권한 검증을 구현하고 테스트한다.
+
 ## 단계 보고 양식
 
 1. 구현 내용과 충족 요구사항 ID

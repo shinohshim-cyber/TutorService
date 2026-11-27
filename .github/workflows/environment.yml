@@ -46,6 +46,8 @@ jobs:
         run: docker compose --env-file .env -f infra/compose.yml up -d --build --wait --wait-timeout 240
       - name: Verify infrastructure and migration replay
         run: python scripts/verify-environment.py
+      - name: Verify member authentication and relationships
+        run: python scripts/verify-auth.py
       - name: Stop CI services
         if: always()
         run: docker compose --env-file .env -f infra/compose.yml down

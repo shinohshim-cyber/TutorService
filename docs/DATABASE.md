@@ -1,14 +1,16 @@
 # 데이터베이스 설계
 
-상태: 업무 논리 모델 초안. 아래 업무 테이블의 물리 마이그레이션은 구현 단계별로 작성한다. 1단계의 `V1__platform_baseline.sql`은 pgvector 확장, common/identity/chat/aichat/memory/rag schema 및 권한만 구성하며 회원·채팅 테이블은 아직 생성하지 않는다. PostgreSQL은 업무·게시 상태의 단일 원본이다. PK는 서버 생성 UUID, 시간은 timestamptz를 사용한다.
+상태: 단계별 구현 중. V1은 확장·schema·권한, V2는 identity.users/teacher_signup_invitations/relationship_invitations/teacher_student_relations/account_deletions를 생성한다. 채팅·AI·기억/RAG 테이블은 이후 단계다. PostgreSQL은 업무·게시 상태의 단일 원본이다. PK는 서버 생성 UUID, 시간은 timestamptz를 사용한다.
 
 ## PostgreSQL 엔티티
 
 | 테이블 | 주요 열 | 제약/인덱스 |
 | --- | --- | --- |
-| users | id, normalized_email, password_hash, role, status, created_at | email UNIQUE, role STUDENT/TEACHER, 삭제 계정 로그인 금지 |
-| teacher_student_relations | id, teacher_id, student_id, status, verified_by, accepted_at | 활성 쌍 partial UNIQUE, 역할 교차 검증 |
-| relationship_invitations | id, sender_id, recipient_id, digest, expires_at, consumed_at | digest UNIQUE, 단회 사용, 승인된 선생님만 발급 |
+| users | id, normalized_email, password_hash, name, role, status, session_version, created_at | email UNIQUE, role STUDENT/TEACHER, status ACTIVE/DELETED, 탈퇴 시 version 증가·익명화 |
+| teacher_signup_invitations | id, normalized_email, digest, verified_by, expires_at, consumed_at | 운영자 발급·email 귀속·SHA256 digest UNIQUE·단회 소비 |
+| account_deletions | id, user_id, created_at | user UNIQUE, 회원 삭제 완료 기록; 대화 등 파생 데이터 정리는 후속 단계에서 연동 |
+| teacher_student_relations | id, teacher_id, student_id, status, invitation_id, accepted_at | 활성 쌍 partial UNIQUE, invitation UNIQUE/FK, ACTIVE/REVOKED, 역할 교차 검증 |
+| relationship_invitations | id, sender_id, recipient_id, expires_at, consumed_at | 수신 학생의 인증된 UUID로 단회 수락, 승인된 선생님만 발급; bearer 초대 토큰 없음 |
 | notifications | id, recipient_id, type, reference_id, read_at, source_event_id | (recipient_id, source_event_id) UNIQUE |
 | chat_rooms | id, teacher_id, student_id, relation_id, next_seq, status | 활성 참여자 쌍 UNIQUE |
 | chat_members | room_id, user_id, last_read_seq | (room_id,user_id) PK, 읽음 단조 증가 |
@@ -45,7 +47,7 @@ Flyway가 전체 PostgreSQL 스키마를 관리한다. JPA와 SQLAlchemy는 생�
 
 | 용도 | 키/정책 |
 | --- | --- |
-| Refresh | auth:refresh:{family}:{jti} → digest, userId, status, expiry. 절대 만료 14일 후보, Rotation해도 family 수명은 무한 연장하지 않음 |
+| Refresh | tutor:auth:family:{UUID} hash → uid/ver/exp/revoked 및 t:{HMAC digest}=ACTIVE/USED. Lua 원자 Rotation/replay 폐기, 절대14일 EXPIREAT 고정, 원문 없음 |
 | Presence | presence:{user}:{connection} → heartbeat, TTL 60초 후보. 20초 heartbeat, 하나라도 활성일 때 online |
 | Queue | tutor:jobs + consumer group, pending reclaim, DLQ, result/notification 이벤트 |
 | Checkpoint | 라이브러리 키는 adapter가 관리, thread+generation+attempt namespace 사용. raw 사용자 ID를 키로 받지 않음 |

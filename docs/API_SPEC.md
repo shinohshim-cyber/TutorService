@@ -10,19 +10,21 @@ Access JWT는 `Authorization: Bearer`로 전달한다. pagination은 `limit` 기
 
 ## REST
 
-1단계 환경 확인용 공개 endpoint는 `GET /api/v1/system/status`와 `GET /actuator/health`다. 전자는 `{service:"TutorService",status:"UP",phase:"environment"}`, 후자는 상세 정보 없는 health 상태를 반환한다. 아래 회원·채팅·기억 API는 이후 단계에서 구현하며 현재 제공되는 것으로 간주하지 않는다. 내부 AI 서비스는 호스트 포트를 공개하지 않고 `/internal/v1/health/live`, `/internal/v1/health/ready`만 제공한다. ready는 실제 DB 연결 실패 시 비밀정보 없이 503을 반환한다.
+공개 환경 endpoint는 `GET /api/v1/system/status`와 `GET /actuator/health`다. 전자는 `{service:"TutorService",status:"UP",phase:"environment"}`, 후자는 상세 정보 없는 health 상태를 반환한다. 2단계는 아래 auth/users/relationships를 구현한다. 채팅·접속 상태·알림·기억/RAG는 이후 단계다. 내부 AI 서비스는 호스트 포트를 공개하지 않고 `/internal/v1/health/live`, `/internal/v1/health/ready`만 제공한다. ready는 실제 DB 연결 실패 시 비밀정보 없이 503을 반환한다.
 
 | Method / path | 입력·결과 | 권한/조건 |
 | --- | --- | --- |
-| POST /auth/signup | email,password,name,requestedRole → user | 학생 기본, 선생님은 검증된 초대 필요 |
+| GET /auth/csrf | → {token,headerName}, XSRF-TOKEN cookie | 변경 요청 전 조회 |
+| POST /auth/signup | email,password,name,requestedRole?,teacherInvitationToken? → user, 201 | 학생 기본, 선생님은 검증된 단회 가입 초대 필요 |
 | POST /auth/login | email,password → accessToken,expiresIn + refresh cookie | 실패 제한 |
 | POST /auth/refresh | HttpOnly refresh cookie → 새 access/refresh | Origin/CSRF 확인, 원자 Rotation |
 | POST /auth/logout | 현재 family 폐기 → 204 | cookie 제거, WS 종료 |
 | GET/PATCH /users/me | 본인 프로필 → user | 역할 변경 금지 |
-| DELETE /users/me | 재인증 확인 → 202 deletionId | 토큰·신규 작업 즉시 차단 |
+| DELETE /users/me | {password} 재인증 → 202 {deletionId} | 회원 익명화·관계 회수·모든 세션 즉시 차단 |
 | POST /relationships/invitations | recipientId → invitationId | 검증된 선생님, 임의 담당 지정 금지 |
+| GET /relationships/invitations | limit?,cursor? → {items,nextCursor,hasMore} | 본인이 보낸/받은 유효한 대기 초대 |
 | POST /relationships/invitations/{id}/accept | 승인 → relation | 초대받은 학생 |
-| GET /relationships | 담당 관계 목록 | 본인 범위 |
+| GET /relationships | limit?,cursor? → {items,nextCursor,hasMore} | 본인 활성 담당 관계 |
 | DELETE /relationships/{id} | 관계 해제 → 204 | 당사자, 방 접근 회수 |
 | GET /presence?userIds=... | 온라인 여부 | 담당 관계 범위, 최대 50 |
 | GET /notifications | cursor 목록 | 수신자 본인 |
@@ -48,6 +50,10 @@ Access JWT는 `Authorization: Bearer`로 전달한다. pagination은 `limit` 기
 | GET /learning/analysis | 개념별 관찰·출처·불확실성 | 학생 본인, 선생님 자동 공개 없음 |
 
 개별 AI 메시지 수정·삭제는 초기 API에서 제공하지 않는다. 정정은 새 메시지 또는 기억 수정, 대화 제거는 세션 삭제로 처리한다. 추후 도입 시 해당 메시지에서 파생된 요약·체크포인트·기억·그래프까지 무효화해야 한다.
+
+## 2단계 회원·인증 응답 상세
+
+2단계 응답 상세: user는 `{id,email,name,role}`, login/refresh는 `{accessToken,expiresIn:900,user}`다. 로그인·가입은 공통 오류로 처리하며 이름 PATCH는 `{name}`만 허용한다. 모든 변경 요청은 허용 Origin과 GET /auth/csrf로 받은 `X-XSRF-TOKEN`을 함께 요구한다. TUTOR_REFRESH cookie는 HttpOnly/SameSite=Strict, `/api/v1/auth` 경로이며 서버 family 만료는 최초 발급 후14일로 고정한다. 운영 Secure=true, HTTP loopback Compose만 false다. 관계 초대 응답은 `{id,senderId,recipientId,expiresAt}`, 수락/관계는 `{id,teacherId,studentId,status,acceptedAt}`다. 관계/초대 목록은 UUID 오름차순의 불투명 cursor를 사용한다. 입력 정책·선생님 검증은 [AUTH_DESIGN](AUTH_DESIGN.md)을 따른다.
 
 ## STOMP
 

@@ -69,7 +69,7 @@ def main() -> None:
     print("PASS: React gateway, Spring API and internal FastAPI readiness")
 
     assert sql("SELECT extversion FROM pg_extension WHERE extname='vector'") == "0.8.7", "pgvector version"
-    assert sql("SELECT count(*) FROM public.flyway_schema_history WHERE success") == "1", "Flyway baseline missing"
+    assert sql("SELECT string_agg(version, ',' ORDER BY installed_rank) FROM public.flyway_schema_history WHERE success") == "1,2", "Expected Flyway migrations missing"
     assert sql("SELECT count(*) FROM pg_namespace WHERE nspname IN ('common','identity','chat','aichat','memory','rag')") == "6"
     assert sql("SELECT rolsuper FROM pg_roles WHERE rolname='tutor_app'") == "f", "App has superuser rights"
     assert sql("SELECT rolsuper FROM pg_roles WHERE rolname='tutor_ai'") == "f", "AI has superuser rights"
@@ -101,9 +101,9 @@ def main() -> None:
     if not args.skip_restart:
         command("restart", "backend")
         command("up", "-d", "--wait", "--wait-timeout", "180", "backend")
-        assert sql("SELECT count(*) FROM public.flyway_schema_history WHERE success") == "1", "Migration was duplicated"
+        assert sql("SELECT string_agg(version, ',' ORDER BY installed_rank) FROM public.flyway_schema_history WHERE success") == "1,2", "Migration was duplicated"
         check_http("http://127.0.0.1:18080/actuator/health", {"status": "UP"})
-        print("PASS: Spring restart preserves the single Flyway migration")
+        print("PASS: Spring restart preserves exactly the two Flyway migrations")
 
 
 if __name__ == "__main__":
