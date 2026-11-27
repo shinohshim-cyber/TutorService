@@ -59,6 +59,8 @@ git switch -c chore/TUT-1-collaboration
 
 PR 작성자는 자기 PR을 Approve할 수 없다. 1인 개발에서는 승인 수 0명으로 자기 점검 후 직접 병합한다. 승인 요구를 없애도 PR 경유 및 강제 push·삭제 차단은 유지한다. 존재하지 않는 CI job을 필수 검사로 지정하지 않는다. 기능 CI를 구축한 뒤 실제 성공 이력이 있는 검사 이름을 확인해 적용한다.
 
+환경 CI는 [Environment verification](.github/workflows/environment.yml)의 `build-and-integration` 작업에서 수행한다. 실제 성공 이력을 확인한 이 검사 이름을 PR 필수 검사로 등록하고, 이후 단계의 기능 테스트를 같은 검증 경로에 추가한다.
+
 병합 전 최신 `develop`과의 충돌을 해결하고 필요한 검증을 다시 수행한다. 이슈 키를 유지하는 Squash merge를 기본 작업 관례로 권장하며 저장소는 merge·squash·rebase 방식을 모두 허용한다. 작업 브랜치 정리는 PR 병합을 확인한 뒤 수행한다.
 
 ## 자기 점검 항목

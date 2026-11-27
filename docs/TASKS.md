@@ -1,6 +1,6 @@
 # 단계별 구현 계획 및 현재 상태
 
-2026-11-27 기준: 디렉터리·설치 환경 조사와 요구 설계 문서 14개 작성 및 문서 정합성 점검 완료. 사용자 요청으로 **Java 21 선택·설치·환경변수 설정·컴파일/실행 검증 완료**. 1단계 중 Java 준비만 완료했고 나머지 구현은 사용자 확인 대기다. 단계별 승인된 범위만 수행하고 전체를 한 번에 구현하지 않는다.
+2026-11-27 기준: 설계 문서 작성 후 사용자 승인 범위에서 **1단계 구성과 로컬 검증을 완료**했다. Docker Desktop/WSL2, Java21, 세 서비스 골격, 의존성·이미지 잠금, Compose, Flyway, CI를 구성했다. 최종 원격 CI·develop 병합 여부와 결과는 [TUT-2](https://gad03302.atlassian.net/browse/TUT-2)에서 추적한다. 작업 브랜치는 `chore/TUT-2-development-environment`다. 업무 기능은 다음 단계이며 전체를 한 번에 구현하지 않는다.
 
 별도 협업 설정 작업은 [TUT-1](https://gad03302.atlassian.net/browse/TUT-1)에서 관리한다. GitHub 기본 브랜치 develop 및 보호 ruleset을 확인했으며 1인 개발에 맞게 필수 타인 승인 0명, PR 경유·리뷰 대화 해결·강제 push/삭제 차단을 적용했다. Jira 흐름은 `할 일 → 진행 중 → 체크 → 완료`이며 CONTRIBUTING.md와 PR 템플릿으로 작업·검증·병합 절차를 정의한다. 이 협업 설정은 애플리케이션 1단계 완료를 의미하지 않는다.
 
@@ -8,7 +8,7 @@
 
 | 단계 | 산출물/구현 | 완료 게이트 | 선행·주요 문제 |
 | --- | --- | --- | --- |
-| 1 공통 환경 | JDK 21 준비 완료. Wrapper, frontend/backend/ai-service 골격, Compose, 환경변수 예제, Flyway baseline, CI는 미착수 | 실제 build/typecheck/pytest smoke, Compose health, migration 재실행·확장 검증, lock/digest 고정 | 나머지 작업 진행 확인, Docker 준비, WSL 권한·RAM/GPU 확인 |
+| 1 공통 환경 | 구성·로컬 검증 완료: Docker·JDK21·세 서비스 골격·Compose·Flyway·CI·lock/digest | typecheck/build·Python2개·7개 healthy·DB/Redis/Neo4j·재기동 검증 통과 | 최종 원격 CI·병합 이력은 TUT-2 및 PR 확인 |
 | 2 회원·인증 | users/roles/초대 관계, BCrypt, JWT, Redis refresh rotation, 회원 API | role 상승 차단, refresh 경합/replay/family 폐기, 탈퇴·인가 테스트 | 1 완료, 선생님 검증·초대 bootstrap 방안 |
 | 3 일반 채팅 | rooms/messages/read, WS, presence/알림, Outbox relay, cursor | DB 저장 후 전달, 중복·rollback·오프라인·읽음·WS 인가 통과 | 2, 단일 Spring replica 기준 |
 | 4 AI 기본 | 학생 session/thread, LangGraph+Ollama, 원본 이력·내부 API, 최소 학습 상담 | 한국어 가상 질의 성공, scope·모델 오류·timeout 검증 | 3, 생성 모델 평가. 동기 실행은 개발 검증용으로 한정 |
@@ -25,7 +25,7 @@
 
 | 항목 | 초기 제안 | 재검토 시점 |
 | --- | --- | --- |
-| Spring baseline | Boot 4.0.x + JDK21 + Gradle8.14.x, BOM | 1단계 resolver/빌드 |
+| Spring baseline | Boot4.0.10 + JDK21 + Gradle8.14.3, BOM·lock·SHA256 | 1단계 Windows/Linux 빌드 검증 |
 | 모델 | 현재 설치 gemma4:e2b/bge-m3 우선 평가 | 4·9단계 품질·메모리 측정 |
 | 순서 보장 | DB seq + lease + monotonic fence | 5단계 장애·동시성 시험 |
 | checkpoint | attempt 격리 + accepted head + write guard | 6단계 library API 검증 |
@@ -33,9 +33,9 @@
 | 원본 보관 | 미확정, 장기 기억 90~365일과 별개 | 실제 데이터 운영 전 |
 | 역할·관계 bootstrap | 승인된 선생님 초대 + 학생 수락 | 2단계 시작 전 구체화 |
 
-## 1단계 구현 확인 시 범위
+## 1단계 구현 범위 및 검증
 
-JDK21은 준비 완료했다. 나머지 작업 확인 후 Docker 준비 상태를 해결하고, 버전·의존성을 고정하고, 최소 3개 서비스 골격·로컬 Compose·Flyway baseline·CI smoke 검증까지만 수행한다. 회원·채팅 기능은 다음 단계다. 설치에 시스템 권한이 필요하면 실제 명령과 변경 범위를 제시한다. 현재는 JDK21만 설치했으며 애플리케이션 의존성은 미설치다. 사용자가 연결한 GitHub 저장소를 확인하고 develop 기반 작업 절차를 구성했다.
+JDK21·로컬 Docker Desktop을 준비하고 버전·의존성을 고정했으며 최소 3개 서비스 골격·Compose·Flyway baseline·환경 검증·CI를 구성했다. 로컬 전체 통합 검증이 통과했다. 실행 명령과 제약은 LOCAL_SETUP.md를 따른다. 회원·채팅 기능은 아직 구현하지 않았다. PR의 실제 CI 성공과 develop 병합을 확인한 뒤 Jira를 완료 처리한다.
 
 ## 단계 보고 양식
 
@@ -48,7 +48,7 @@ JDK21은 준비 완료했다. 나머지 작업 확인 후 Docker 준비 상태�
 ## 현재 검증 기록
 
 - 디렉터리: 초기 항목 0개. 기존 파일 손상 없음.
-- 도구: 최초 Java17 확인 후 사용자 요청으로 Temurin JDK21 설치. 시스템 JAVA_HOME/PATH 갱신 후 java/javac 21.0.13.1 확인 및 `javac --release 21`/실행 smoke 통과(exit 0). Python3.12/Node24/npm11/Git/Ollama 조회 성공. Gradle·Docker 명령 없음. WSL/CIM 정보는 권한 문제로 미확인.
-- 기술 문서: 공식 호환 요구사항 조사 완료. 실제 패키지 resolve·서비스 통합 호환성은 미검증.
+- 도구: JDK21 컴파일·실행, Gradle8.14.3 Wrapper, Docker Desktop4.100.1/Engine29.9.3/Compose5.7.1 및 hello-world 통과. 기존 Ubuntu24.04/WSL2와 하드웨어 조회 완료. Docker 가상 디스크는 D 드라이브에 생성됐다.
+- 의존성: npm lock, Python prod/dev SHA256 lock, Gradle BOM/lock/verification metadata, 이미지8종 digest 및 CI Actions SHA를 고정하고 빌드·기동 검증했다.
 - 문서: 필수 14개와 실제 14개 일치, UTF-8·빈 파일·제목·코드 블록·로컬 상대 링크 자동 점검 통과(exit 0). 정책·상태 전이·삭제·scope·잠금 순서의 문서 교차 검토 완료. TEST_PLAN에 검증 범위를 기록했다.
-- 애플리케이션 테스트: 코드와 실행 환경이 아직 없어 미실행. 구현 완료로 계산하지 않는다.
+- 로컬 검증: frontend typecheck/build, backend build(단위 테스트 소스 없음), AI 테스트2개, 실제7서비스 health·포트·API·DB역할·pgvector·RedisJSON/검색·Neo4j·Flyway 재기동 중복 방지 통과. 원격 CI 실행 결과는 PR/TUT-2 참조. 회원·채팅·AI Agent 테스트는 해당 기능 미구현으로 미실행이다.

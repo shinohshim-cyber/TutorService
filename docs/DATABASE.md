@@ -1,6 +1,6 @@
 # 데이터베이스 설계
 
-상태: 논리 모델 초안. 아래는 DDL이 아니며 물리 마이그레이션은 구현 단계별로 작성한다. PostgreSQL은 업무·게시 상태의 단일 원본이다. PK는 서버 생성 UUID, 시간은 timestamptz를 사용한다.
+상태: 업무 논리 모델 초안. 아래 업무 테이블의 물리 마이그레이션은 구현 단계별로 작성한다. 1단계의 `V1__platform_baseline.sql`은 pgvector 확장, common/identity/chat/aichat/memory/rag schema 및 권한만 구성하며 회원·채팅 테이블은 아직 생성하지 않는다. PostgreSQL은 업무·게시 상태의 단일 원본이다. PK는 서버 생성 UUID, 시간은 timestamptz를 사용한다.
 
 ## PostgreSQL 엔티티
 
@@ -38,6 +38,8 @@
 Spring이 users/chat/ai_jobs/ai_messages/lease/context head/outbox의 유일한 writer다. Python SQLAlchemy는 허용된 기억·RAG 조회와 staging만 담당한다. 기억 게시·정정·삭제는 Spring의 조건부 commit 관문을 거친다. Python DB 계정에는 일반 채팅 테이블 읽기 권한을 주지 않는다. schema owner, Spring, worker, migration 계정을 분리한다.
 
 Flyway가 전체 PostgreSQL 스키마를 관리한다. JPA와 SQLAlchemy는 생성·자동 변경을 하지 않는다. pgvector 확장 설치 권한은 migration 계정에 한정한다. 버전 파일은 적용 후 수정하지 않고 전진 마이그레이션을 추가한다. 로컬 초기화와 운영 데이터 변경을 구분하고 데이터 유실 롤백 대신 복구·보상 계획을 작성한다.
+
+로컬 서버 초기 부트스트랩은 `infra/postgres/001-create-roles.sh`가 runtime 로그인 계정만 생성한다. 업무 schema·확장·객체 권한과 이후 테이블 변경은 backend Flyway migration에서 관리한다. Spring 일반 datasource는 tutor_app, Python은 tutor_ai이며 migration용 관리자 연결과 분리한다.
 
 ## Redis
 

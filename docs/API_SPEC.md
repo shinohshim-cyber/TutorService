@@ -10,6 +10,8 @@ Access JWT는 `Authorization: Bearer`로 전달한다. pagination은 `limit` 기
 
 ## REST
 
+1단계 환경 확인용 공개 endpoint는 `GET /api/v1/system/status`와 `GET /actuator/health`다. 전자는 `{service:"TutorService",status:"UP",phase:"environment"}`, 후자는 상세 정보 없는 health 상태를 반환한다. 아래 회원·채팅·기억 API는 이후 단계에서 구현하며 현재 제공되는 것으로 간주하지 않는다. 내부 AI 서비스는 호스트 포트를 공개하지 않고 `/internal/v1/health/live`, `/internal/v1/health/ready`만 제공한다. ready는 실제 DB 연결 실패 시 비밀정보 없이 503을 반환한다.
+
 | Method / path | 입력·결과 | 권한/조건 |
 | --- | --- | --- |
 | POST /auth/signup | email,password,name,requestedRole → user | 학생 기본, 선생님은 검증된 초대 필요 |
