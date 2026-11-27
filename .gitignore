@@ -1,0 +1,88 @@
+# Environment and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.env.bak
+*.env.backup
+.aws/
+.ssh/
+.codex/
+.agents/
+credentials*.json
+infra/cloudflare/*.json
+
+# Editors and OS
+.idea/
+.vscode/
+*.iml
+Thumbs.db
+.DS_Store
+.classpath
+.project
+.settings/
+.metadata/
+
+# Node / Electron
+node_modules/
+dist/
+release/
+playwright-report/
+test-results/
+.npm/
+.tools/
+coverage/
+*.lcov
+*.dmp
+
+# Java
+.gradle/
+.gradle-user-home/
+build/
+out/
+target/
+*.class
+*.jar
+!gradle-wrapper.jar
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.ruff_cache/
+.mypy_cache/
+.uv-cache/
+
+# Local runtime data
+*.log
+*.log.*
+infra/data/
+infra/backups/
+tutipal_back/data/
+.local-data/
+/storage/
+/models/
+.ollama/
+.cache/
+*.gguf
+*.safetensors
+*.onnx
+*.pt
+*.pth
+
+# Previous document generation intermediates (keep source design in Git)
+docs/design_20261117/
+# 캐릭터 원본 작업 아카이브. 실행에 쓰는 스프라이트/아이콘은 별도 소스에 포함한다.
+docs/tutipal_owl.zip
+outputs/
